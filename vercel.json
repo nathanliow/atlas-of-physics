@@ -1,6 +1,6 @@
 {
   "redirects": [
     { "source": "/", "destination": "https://atlasclass.app/", "permanent": true },
-    { "source": "/:path+", "destination": "https://atlasclass.app/physics/:path+", "permanent": true }
+    { "source": "/(.+)", "destination": "https://atlasclass.app/physics/$1", "permanent": true }
   ]
 }
