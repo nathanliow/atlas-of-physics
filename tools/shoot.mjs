@@ -11,17 +11,17 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 const server = http.createServer((req, res) => {
   let p = path.join(ROOT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
   if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, 'index.html');
-  if (!p.startsWith(ROOT) || !fs.existsSync(p)) { res.writeHead(404); return res.end(); }
+  if (!p.startsWith(ROOT + path.sep) || !fs.existsSync(p)) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' });
   fs.createReadStream(p).pipe(res);
-}).listen(0);
+}).listen(0, '127.0.0.1');
 const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: 'new', args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage();
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if ((m.type() === 'error' || m.type() === 'warning') && !m.location().url?.includes('/_vercel/insights/')) errors.push(m.text()); });
 await page.setViewport({ width: W, height: H, deviceScaleFactor: 2 });
-await page.goto(`http://localhost:${server.address().port}/${process.env.CHAPTER || "kinematics"}/`, { waitUntil: 'networkidle0' });
+await page.goto(`http://127.0.0.1:${server.address().port}/${process.env.CHAPTER || "kinematics"}/`, { waitUntil: 'networkidle0' });
 await page.waitForFunction('window.__atlas', { timeout: 30000 }).catch(() => { console.log('page never started:\n' + errors.join('\n')); process.exit(1); });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 await wait(800);
