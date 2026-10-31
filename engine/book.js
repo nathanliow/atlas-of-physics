@@ -101,6 +101,20 @@ export function startBook(chapter) {
 
   // ---------- scene ----------
   const E = createEngine($('gl'), { fov: 18, near: 0.2, far: 300 });
+  // no WebGL: the text, practice and live numbers still work; the figure says why it is empty and how to fix it
+  if (!E.renderer) {
+    const chrome = /Chrome\//.test(navigator.userAgent) && !/Edg\//.test(navigator.userAgent);
+    const fig = $('gl').parentElement;
+    fig.classList.add('nogl');
+    fig.insertAdjacentHTML('beforeend', `<div class="nogl-note" role="alert">
+      <div class="kicker">Figure unavailable</div>
+      <h2>The 3D figures need WebGL, which your browser could not start.</h2>
+      <p>This usually means <b>hardware acceleration</b> (graphics acceleration) is turned off.</p>
+      <p>${chrome ? 'In Chrome, open <code>chrome://settings/system</code>, turn on <i>Use graphics acceleration when available</i> and relaunch.'
+        : 'Turn on hardware or graphics acceleration in your browser’s settings and restart it.'}
+        <span class="more">If it is already on, your graphics driver may be blocked: <code>chrome://gpu</code> (or <code>about:support</code> in Firefox) shows why.</span></p>
+      <p class="muted more">The text and practice questions still work without it.</p></div>`);
+  }
   const W = chapter.buildWorld(E);
   // the figure's box, read once per resize: reading it every frame forced a layout after each DOM write.
   // Its size is the layout size, so the book zooming open (cover.js) cannot shrink the canvas; cover.js refits after.

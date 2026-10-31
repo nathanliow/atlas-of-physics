@@ -8,8 +8,11 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { TONE } from './parts.js';
 
 export function createEngine(canvas, { fov = 18, near = 0.1, far = 400, bg = '#fbfbfa' } = {}) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
-  renderer.setClearColor(bg);
+  // no WebGL (hardware acceleration off, a blocklisted GPU): the scene, camera and picking still work, nothing draws,
+  // and the book says why (book.js)
+  let renderer = null;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true }); renderer.setClearColor(bg); }
+  catch (err) { console.warn('Atlas of Physics: WebGL is unavailable, so the figures cannot be drawn.', err); }
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(fov, 1, near, far);
   const ASM = {};
@@ -41,8 +44,8 @@ export function createEngine(canvas, { fov = 18, near = 0.1, far = 400, bg = '#f
   };
   const normalRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(1, 1) });
   const colorRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
-  const composer = new EffectComposer(renderer, colorRT);
-  composer.addPass(new RenderPass(scene, camera));
+  const composer = renderer && new EffectComposer(renderer, colorRT);
+  composer?.addPass(new RenderPass(scene, camera));
   const edges = new ShaderPass({
     uniforms: {
       tDiffuse: { value: null }, tNormal: { value: null }, tDepth: { value: null },
@@ -78,24 +81,26 @@ export function createEngine(canvas, { fov = 18, near = 0.1, far = 400, bg = '#f
   });
   // ShaderPass clones its uniforms (textures too), so bind the live targets after creating it
   edges.uniforms.tNormal.value = normalRT.texture; edges.uniforms.tDepth.value = normalRT.depthTexture;
-  composer.addPass(edges);
-  composer.addPass(new OutputPass());
+  composer?.addPass(edges);
+  composer?.addPass(new OutputPass());
 
   let dprCap = 2, size = [1, 1];
   const setDprCap = c => { dprCap = c; resize(...size); };
   function resize(w, h) {
     size = [w, h];
     const dpr = Math.min(devicePixelRatio || 1, dprCap);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (!renderer) return;
     renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
     composer.setPixelRatio(dpr); composer.setSize(w, h);
     normalRT.setSize(w * dpr, h * dpr);
     edges.uniforms.uRes.value.set(w * dpr, h * dpr);
     edges.uniforms.uPx.value = Math.max(1, dpr * 0.75);
-    camera.aspect = w / h; camera.updateProjectionMatrix();
   }
 
   const swap = [];
   function render() {
+    if (!renderer) return;
     // shared materials: push each mesh's lit amount just before it draws
     scene.traverse(o => {
       if (o.isMesh && o.material.uniforms && o.material.uniforms.uLit && !o.onBeforeRender.__lit) {
